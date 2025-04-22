@@ -1,0 +1,4 @@
+DATA/RAW/Load[[:space:]]Data-raw.zip filter=lfs diff=lfs merge=lfs -text
+DATA/RAW/county-level-CFs.zip filter=lfs diff=lfs merge=lfs -text
+DATA/RAW/demand_hist.zip filter=lfs diff=lfs merge=lfs -text
+DATA/RAW/JPoNG-17node.zip filter=lfs diff=lfs merge=lfs -text
