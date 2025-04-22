@@ -1,0 +1,7 @@
+# Ignore solar and wind subdirectories
+/DATA/raw/3k_buses/CapacityFactors_ISONE/Solar/
+/DATA/raw/3k_buses/CapacityFactors_ISONE/Wind/
+
+/ARCHIVE/
+.DS_Store
+.pyc
