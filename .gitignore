@@ -1,7 +1,26 @@
 # Ignore solar and wind subdirectories
 /DATA/raw/3k_buses/CapacityFactors_ISONE/Solar/
 /DATA/raw/3k_buses/CapacityFactors_ISONE/Wind/
-
+**/old/
 /ARCHIVE/
-.DS_Store
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 .pyc
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode / PyCharm / other IDEs
+.vscode/
+.idea/
+
+# OS generated files (especially on Windows/macOS)
+.DS_Store
