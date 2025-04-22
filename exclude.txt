@@ -1,0 +1,3 @@
+ARCHIVE/
+.git/
+results/distance_metrics/*

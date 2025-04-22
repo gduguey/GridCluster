@@ -1,0 +1,30 @@
+My task ID:  28
+Number of Tasks:  48
+Total configurations: 108
+Starting processing 2 configurations...
+
+
+Processing configuration:
+  Demand Type: k-interpolation
+  K-weight Demand: 3
+  Time Scale: yearly
+  K-neighbors CF: 2
+Number of duplicates deleted in nodes_df: 2238
+  Time Series: dict_keys(['wind'])
+  Data and network processing time: 40.55 seconds
+  Distance metrics computation time: 1323.68 seconds
+  ###############################.
+
+Processing configuration:
+  Demand Type: total_demand
+  K-weight Demand: Not applicable
+  Time Scale: monthly
+  K-neighbors CF: 2
+Number of duplicates deleted in nodes_df: 2238
+  Time Series: dict_keys(['wind', 'solar'])
+  Data and network processing time: 101.65 seconds
+  Distance metrics computation time: 1886.02 seconds
+  ###############################.
+
+Processing time: 3351.89 seconds
+Successfully processed 2 configurations!
