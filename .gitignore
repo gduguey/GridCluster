@@ -7,6 +7,8 @@ DATA/processed/*/*/wind.parquet
 DATA/processed/*/*/solar.parquet
 #Ignore all old folders across the repository
 **/old/
+# Ignore distance metrics results
+results/distance_metrics/*
 # Ignore Archive folders
 /ARCHIVE/
 # Byte-compiled / optimized / DLL files
