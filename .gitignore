@@ -1,7 +1,13 @@
 # Ignore solar and wind subdirectories
 /DATA/raw/3k_buses/CapacityFactors_ISONE/Solar/
 /DATA/raw/3k_buses/CapacityFactors_ISONE/Wind/
+# Ignore heavy Parquet files
+DATA/processed/*/*/demand.parquet
+DATA/processed/*/*/wind.parquet
+DATA/processed/*/*/solar.parquet
+#Ignore all old folders across the repository
 **/old/
+# Ignore Archive folders
 /ARCHIVE/
 # Byte-compiled / optimized / DLL files
 __pycache__/
