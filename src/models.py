@@ -406,11 +406,11 @@ class SpatialAggregation:
     def distance_metrics(self) -> DistanceMetrics:
         """Lazy-loaded distance metrics"""
         if self._distance_metrics is None:
-            try:
-                self._distance_metrics = self._io.load_metrics()
-            except FileNotFoundError:
-                self._distance_metrics = self.DistanceCalculator.compute_metrics(self.node_features, self.config)
-                self._io.save_metrics(self._distance_metrics)
+            # try:
+            #     self._distance_metrics = self._io.load_metrics()
+            # except FileNotFoundError:
+            self._distance_metrics = self.DistanceCalculator.compute_metrics(self.node_features, self.config)
+            self._io.save_metrics(self._distance_metrics)
         return self._distance_metrics
     
     def aggregate(self, method: str = 'kmedoids') -> dict:
@@ -522,12 +522,12 @@ class TemporalAggregation:
         return final_data
     
     @staticmethod
-    @njit(parallel=True)
+    # @njit(parallel=True)
     def _distance(arr: np.ndarray) -> np.ndarray:
         """Generic Euclidean distance calculation"""
         dists = np.empty((arr.shape[0], arr.shape[0]))
-        for i in prange(arr.shape[0]):
-            for j in prange(i, arr.shape[0]):
+        for i in range(arr.shape[0]):
+            for j in range(i, arr.shape[0]):
                 dists[i,j] = np.sqrt(np.sum((arr[i] - arr[j])**2))
                 dists[j,i] = dists[i,j]
         return dists
