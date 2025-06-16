@@ -406,11 +406,11 @@ class SpatialAggregation:
     def distance_metrics(self) -> DistanceMetrics:
         """Lazy-loaded distance metrics"""
         if self._distance_metrics is None:
-            # try:
-            #     self._distance_metrics = self._io.load_metrics()
-            # except FileNotFoundError:
-            self._distance_metrics = self.DistanceCalculator.compute_metrics(self.node_features, self.config)
-            self._io.save_metrics(self._distance_metrics)
+            try:
+                self._distance_metrics = self._io.load_metrics()
+            except FileNotFoundError:
+                self._distance_metrics = self.DistanceCalculator.compute_metrics(self.node_features, self.config)
+                self._io.save_metrics(self._distance_metrics)
         return self._distance_metrics
     
     def aggregate(self, method: str = 'kmedoids') -> dict:
