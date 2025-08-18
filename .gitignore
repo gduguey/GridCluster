@@ -1,16 +1,10 @@
-# Ignore solar and wind subdirectories
-/DATA/raw/3k_buses/CapacityFactors_ISONE/Solar/
-/DATA/raw/3k_buses/CapacityFactors_ISONE/Wind/
-# Ignore heavy Parquet files
-DATA/processed/*/*/demand.parquet
-DATA/processed/*/*/wind.parquet
-DATA/processed/*/*/solar.parquet
-#Ignore all old folders across the repository
-**/old/
-# Ignore distance metrics results
-results/distance_metrics/*
-# Ignore Archive folders
-/ARCHIVE/
+# External or generated data
+DATA/raw/
+DATA/processed/
+
+# Ignore all results
+**/results/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

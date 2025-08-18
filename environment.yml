@@ -1,0 +1,29 @@
+name: gridcluster
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - matplotlib
+  - folium
+  - flask
+  - xarray
+  - netcdf4
+  - h5netcdf
+  - numba
+  - scikit-learn
+  - scikit-learn-extra
+  - geopandas
+  - shapely
+  - pydantic
+  - dataclasses
+  - seaborn
+  - jupyterlab
+  - ipykernel
+  - gdown
+  # Gurobi is proprietary—install via pip
+  - pip
+  - pip:
+    - gurobipy
