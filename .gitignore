@@ -1,8 +1,9 @@
 # External or generated data
-DATA/raw/
-DATA/processed/
+/DATA/raw/
+/DATA/processed/
 
 # Ignore all results
+/results/
 **/results/
 
 # Byte-compiled / optimized / DLL files
