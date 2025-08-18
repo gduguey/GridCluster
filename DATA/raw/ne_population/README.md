@@ -1,6 +1,6 @@
 # New England Population Extraction
 
-This repository contains:
+This folder contains:
 
 - **extract_NE_population.py**  
   Clips the Kontur 400 m hexagon population dataset to the New England region and plots the result.
