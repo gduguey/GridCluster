@@ -1,10 +1,10 @@
-# models.py
+# models.py — distance metrics, clustering (k-medoids/optimization), temporal aggregation
 
 from pathlib import Path
 from datetime import datetime
+from typing import Any
 from functools import lru_cache
 from dataclasses import dataclass, field, asdict
-from typing import Dict
 import hashlib
 import json
 import numpy as np
@@ -20,7 +20,7 @@ from .settings import Config
 @dataclass(frozen=True)
 class DistanceMetrics:
     """Dynamic container based on active features"""
-    features: Dict[str, np.ndarray] = field(default_factory=dict)
+    features: dict[str, np.ndarray] = field(default_factory=dict)
 
     def __getitem__(self, key: str) -> np.ndarray:
         return self.features[key]
@@ -36,7 +36,7 @@ class SpatialAggregation:
         """Handles distance metric calculations using config-defined features"""
         
         @classmethod
-        def compute_metrics(cls, nodes: dict, config: Config) -> DistanceMetrics:
+        def compute_metrics(cls, nodes: dict[int, dict[str, Any]], config: Config) -> DistanceMetrics:
             """Compute metrics using preprocessed arrays for Numba compatibility"""
             
             print(f"Computing distance metrics for {len(nodes)} nodes. This might take a while...")
@@ -51,7 +51,24 @@ class SpatialAggregation:
                 metrics['position'] = haversine_matrix(pos, pos)
                 print(f"position distance computed in {datetime.now() - t_start}.")
 
-            for feature in set(active_features) - {'position', 'intra_correlation'}:
+            if "time_series" in active_features:
+                t_start = datetime.now()
+                print("Computing time_series distance...")
+                keys = list(next(iter(nodes.values()))["time_series"].keys())
+                arr = []
+                for n in nodes.values():
+                    blocks = []
+                    for k in keys:
+                        ts = n["time_series"][k]
+                        m = np.max(np.abs(ts))
+                        tsn = ts / m if m>0 else ts
+                        blocks.append(tsn)
+                    arr.append(np.concatenate(blocks))
+                arr = np.array(arr)
+                metrics["time_series"] = cls._feature_distance(arr)
+                print(f"time_series distance computed in {datetime.now() - t_start}.")
+
+            for feature in set(active_features) - {'position', 'intra_correlation', 'time_series'}:
                 t_start = datetime.now()
                 print(f"Computing {feature} distance...")
                 arr = np.array([np.concatenate(list(n[feature].values())) for n in nodes.values()])
@@ -90,14 +107,13 @@ class SpatialAggregation:
             return dists
 
         @staticmethod
-        @njit(parallel=True)
         def _inter_correlation(ts: np.ndarray) -> np.ndarray:
-            """Optimized correlation distance calculation"""
+            """Correlation distance calculation"""
             n_nodes, n_keys, _ = ts.shape
             dist_matrix = np.zeros((n_nodes, n_nodes))
 
-            for i in prange(n_nodes):
-                for j in prange(i + 1, n_nodes):
+            for i in range(n_nodes):
+                for j in range(i + 1, n_nodes):
                     total = 0.0
                     count = 0
                     for k1 in range(n_keys):
@@ -344,57 +360,6 @@ class SpatialAggregation:
                 np.allclose(matrix, matrix.T)             # Symmetric
             )
     
-    class Evaluator:
-        """Handles evaluation metrics calculation"""
-        
-        @staticmethod
-        @njit
-        def reeav(original: np.ndarray, aggregated: np.ndarray) -> float:
-            """Relative Energy Error Average"""
-            energy_orig = np.sum(original)
-            energy_agg = np.sum(aggregated)
-            return abs(energy_orig - energy_agg) / energy_orig
-        
-        @staticmethod
-        @njit
-        def nrmseav(original: np.ndarray, aggregated: np.ndarray) -> float:
-            """Normalized Root Mean Square Error Average"""
-            rmse = np.sqrt(np.mean((original - aggregated)**2))
-            return rmse / (np.max(original) - np.min(original) + 1e-9)
-        
-        # @staticmethod
-        # @njit #######################################
-        # def ceav(original: np.ndarray, aggregated: np.ndarray) -> float:
-        #     """Correlation Error Average."""
-
-        #     orig_corr = original_features["correlation"][key]
-        #     agg_corr = aggregated_features["correlation"][key]
-        #     error = abs(orig_corr - agg_corr)
-        #     return error
-        
-        @classmethod
-        def evaluate(cls, original: dict, aggregated: dict) -> dict:
-            """Calculate evaluation metrics for a node pair"""
-            metrics = {}
-            for key in original['duration_curves']:
-                metrics['REEav'] += cls.reeav(
-                    original['duration_curves'][key], 
-                    aggregated['duration_curves'][key]
-                )
-                metrics['NRMSEav'] += cls.nrmseav(
-                    original['duration_curves'][key],
-                    aggregated['duration_curves'][key]
-                )
-                metrics['NRMSEavRDC'] += cls.nrmseav(
-                    original['ramp_duration_curves'][key],
-                    aggregated['ramp_duration_curves'][key]
-                )
-            count = len(original['duration_curves'])
-            metrics['REEav'] /= count
-            metrics['NRMSEav'] /= count
-            metrics['NRMSEavRDC'] /= count
-            return metrics
-    
     
     def __init__(self, node_features: dict, config: Config):
         self.config = config
@@ -435,26 +400,6 @@ class SpatialAggregation:
             total += distance_metrics[feature] * weights[feature]
             
         return total / sum(weights.values())
-
-    def evaluate_aggregation(self, aggregation: dict, metric_type: str = 'literature') -> dict:
-        """Evaluate quality of aggregation"""
-        all_metrics = []
-        if metric_type == 'literature':
-            for repr_id, members in aggregation.items():
-                for member in members:
-                    orig = self.node_features[member]
-                    agg = self.node_features[repr_id]
-                    all_metrics.append(self.Evaluator.evaluate(orig, agg))
-            return {
-                metric: np.mean([m[metric] for m in all_metrics])
-                for metric in all_metrics[0].keys()
-            }
-        elif metric_type == 'custom':
-            if "inertia" in aggregation['metadata']:
-                eval = aggregation['metadata']['inertia']
-            if "objective_value" in aggregation['metadata']:
-                eval = aggregation['metadata']['objective_value']
-            return {"eval": eval}
         
     def update_config(self, new_config: Config):
         """Update configuration and reset cached properties"""
@@ -478,23 +423,27 @@ class TemporalAggregation:
         """
         sampled_nodes_time_serie = self._sampling(self.spatial_agg_results['clusters'], self.nodes_features)
         day_array = self._create_day_array(sampled_nodes_time_serie)
-        distance_matrix = self._distance(day_array)
+        eps = 1e-9
+        day_array_norm = day_array / (day_array.sum(axis=1, keepdims=True) + eps)
+        distance_matrix = self._distance(day_array_norm)
         return SpatialAggregation.Clusterer(self.config).cluster(distance_matrix, self.config.model_hyper.k_representative_days)
         
     @staticmethod
     def _sampling(aggregation: dict, nodes_features: dict) -> dict:
-        """ Randomly sample nodes from each cluster """
+        """ Samples nodes from each cluster """
         sampled_nodes_ts = {}
         for repr_id, members in aggregation.items():
-            sampled_node = np.random.choice(members)
-            sampled_nodes_ts[repr_id] = nodes_features[sampled_node]['time_series']
+            sampled_nodes_ts[repr_id] = nodes_features[repr_id]['time_series']
+            # sampled_node = np.random.choice(members)
+            # sampled_nodes_ts[repr_id] = nodes_features[sampled_node]['time_series']
             for type, ts in sampled_nodes_ts[repr_id].items():
-                mean_sample = ts.mean()
-                means = [nodes_features[k]['time_series'][type].mean() for k in members]
-                mean_target = np.mean(means)
-                scale = (mean_target / mean_sample)
-                ts_adj = ts * scale
-                sampled_nodes_ts[repr_id][type] = ts_adj
+                m = np.max(np.abs(ts))
+                ts1 = ts / m if m>0 else ts
+                mean_sample = ts1.mean()
+                mean_target = np.mean([nodes_features[k]['time_series'][type].mean() 
+                                        / np.max(np.abs(nodes_features[k]['time_series'][type]))
+                                        for k in members])
+                sampled_nodes_ts[repr_id][type] = ts1 * (mean_target/mean_sample if mean_sample>0 else 1.0)
         return sampled_nodes_ts
 
     @staticmethod

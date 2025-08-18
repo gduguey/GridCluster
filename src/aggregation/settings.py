@@ -1,3 +1,4 @@
+# settings.py — configuration objects (preprocessing, paths, hyperparameters)
 # ---------------------------------------------------------------------
 # Configuration Management Module
 # This module provides a configuration management system for a data processing pipeline.
@@ -5,17 +6,12 @@
 # and derived file paths for data access. The configuration is designed to be user-friendly and robust,
 # ensuring that all settings are validated upon assignment.
 # ---------------------------------------------------------------------
-# Author: Gabriel Duguey
-# Date: 2025-04-11
-# Description: Configuration management for data preprocessing and model hyperparameters.
-# ---------------------------------------------------------------------
 # Example usage:
 # from settings import Config
 
 # config = Config(
 #     year=2013,
-#     cf_k_neighbors=1,
-#     demand_decay_alpha=0.5,
+#     granularity='coarse',
 #     active_features=['position', 'time_series', 'duration_curves']
 # )
 
@@ -44,7 +40,7 @@
 #         print("Error updating weights:", e)
 # ---------------------------------------------------------------------
 
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Set
 from dataclasses import dataclass, field
 from pathlib import Path
 from pydantic import BaseModel, PrivateAttr, validator, root_validator
@@ -70,23 +66,17 @@ def auto_generate_weights(active_features: List[str], inter_correlation: bool) -
 class PreprocessingConfig:
     """Immutable data preprocessing settings (data preproc)."""
     year: int
-    # cf_k_neighbors: int
-    # demand_decay_alpha: float
     granularity: str
     active_features: List[str]        
 
     def __post_init__(self):
         if self.year < 2007 or self.year > 2013:
             raise ValueError("Year must be between 2007 and 2013")
-        # if self.cf_k_neighbors <= 0:
-        #     raise ValueError("cf_k_neighbors must be a positive integer")
-        # if not (0 <= self.demand_decay_alpha <= 1):
-        #     raise ValueError("demand_decay_alpha must be between 0 and 1")
         if not isinstance(self.active_features, list):
             raise TypeError("active_features must be a list of strings")
         if len(self.active_features) == 0:
             raise ValueError("active_features cannot be empty")
-        allowed_granularities = {"low", "high", "high_bis", "coarse", "fine"}
+        allowed_granularities = {"coarse", "fine"}
         if self.granularity not in allowed_granularities:
             raise ValueError(f"granularity must be one of {allowed_granularities}")
         allowed_features = ['position', 'time_series', 'duration_curves', 'ramp_duration_curves', 'intra_correlation']
@@ -103,79 +93,44 @@ class PreprocessingConfig:
 class PathConfig:
     """Immutable path configuration based on the data preproc settings."""
     cfg: PreprocessingConfig
-    root: Path = Path(__file__).parent.parent
+    root: Path = Path(__file__).resolve().parents[2]
     # Paths for results
     results: Path = field(init=False)
     distance_metrics: Path = field(init=False)
     joint_aggregation_results: Path = field(init=False)
-    figures: Path = field(init=False)
     # Paths for data files
     data: Path = field(init=False)
     raw: Path = field(init=False)
     processed: Path = field(init=False)
-    node_file: Path = field(init=False)
-    branch_file: Path = field(init=False)
-    demand_lat_lon_file: Path | None = field(init=False)
-    population_file: Path | None = field(init=False)
-    county_file: Path | None = field(init=False)
-    coarse_node_file: Path | None = field(init=False)
+    population_file: Path = field(init=False)
+    county_file: Path = field(init=False)
+    coarse_node_file: Path = field(init=False)
 
     def __post_init__(self):
         object.__setattr__(self, "results", self.root / "results")
         object.__setattr__(self, "distance_metrics", self.results / "distance_metrics")
         object.__setattr__(self, "joint_aggregation_results", self.results / "joint_aggregation_results")
-        object.__setattr__(self, "figures", self.results / "figures")
         object.__setattr__(self, "data", self.root / "DATA")
         object.__setattr__(self, "population_file", self.data / "raw" / "ne_population" / "ne_population.csv")
         object.__setattr__(self, "county_file", self.data / "raw" / "ne_population" / "cb_2021_us_county_500k" / "cb_2021_us_county_500k.shp")
         object.__setattr__(self, "coarse_node_file", self.data / "raw" / "17_zones" / "17_Nodes.csv")
+        object.__setattr__(self, "raw", self.data / "raw" / "385_buses")
+        object.__setattr__(self, "processed", self.data / "processed" / "385_buses")
 
-        if self.cfg.granularity == "high" or self.cfg.granularity == "high_bis":
-            object.__setattr__(self, "raw", self.data / "raw" / "3k_buses")
-            object.__setattr__(self, "processed", self.data / "processed" / "3k_buses")
-            object.__setattr__(self, "node_file", self.raw / "NewEngland-HVbuses.csv")
-            object.__setattr__(self, "branch_file", self.raw / "NewEngland-Branches.csv")
-            object.__setattr__(self, "demand_lat_lon_file", self.raw / "new_england_counties2019.csv")
-        elif self.cfg.granularity == "low":
-            object.__setattr__(self, "raw", self.data / "raw" / "67_counties")
-            object.__setattr__(self, "processed", self.data / "processed" / "67_counties")
-            object.__setattr__(self, "node_file", self.raw / "Power_Nodes_ISONE.csv")
-            object.__setattr__(self, "branch_file", self.raw / "Transmission_Lines_ISONE.csv")
-            object.__setattr__(self, "demand_lat_lon_file", None)
-        
-        else:
-            object.__setattr__(self, "raw", self.data / "raw" / "3k_buses")
-            object.__setattr__(self, "processed", self.data / "processed" / "3k_buses")
-            
     @property
     def demand_file(self) -> Path:
-        """Path for the demand file corresponding to the given year and granularity."""
-        if self.cfg.granularity == "high" or self.cfg.granularity == "high_bis":
-            return self.raw / "demand_hist" / f"county_demand_local_hourly_{self.cfg.year}.csv"
-        elif self.cfg.granularity == "low":
-            return self.raw / "demand_hist" / f"county_demand_local_hourly_{self.cfg.year}.csv"
-        else:
-            return self.raw / "demand_hist" / f"county_demand_local_hourly_{self.cfg.year}.csv"
+        """Path for the demand file corresponding to the given year"""
+        return self.data / "raw" / "67_counties" / "demand_hist" / f"county_demand_local_hourly_{self.cfg.year}.csv"
 
     @property
     def wind_cf_file(self) -> Path:
-        """Path for the wind capacity factor file for the specified year and granularity."""
-        if self.cfg.granularity == "high" or self.cfg.granularity == "high_bis":
-            return self.raw / "CapacityFactors_ISONE" / "Wind" / f"cf_Wind_0.22m_{self.cfg.year}.nc"
-        elif self.cfg.granularity == "low":
-            return self.raw / "county-level-CFs" / "hist" / "wind" / f"cf_local_county_{self.cfg.year}.csv"
-        else:
-            return self.raw / "CapacityFactors_ISONE" / "Wind" / f"cf_Wind_0.22m_{self.cfg.year}.nc"
+        """Path for the wind capacity factor file for the specified year."""
+        return self.raw / "CapacityFactors_ISONE" / "Wind" / f"cf_Wind_0.22m_{self.cfg.year}.nc"
 
     @property
     def solar_cf_file(self) -> Path:
-        """Path for the solar capacity factor file for the specified year and granularity."""
-        if self.cfg.granularity == "high" or self.cfg.granularity == "high_bis":
-            return self.raw / "CapacityFactors_ISONE" / "Solar" / f"cf_Solar_0.22m_{self.cfg.year}.nc"
-        elif self.cfg.granularity == "low":
-            return self.raw / "county-level-CFs" / "hist" / "solar" / f"cf_local_county_{self.cfg.year}.csv"
-        else:
-            return self.raw / "CapacityFactors_ISONE" / "Solar" / f"cf_Solar_0.22m_{self.cfg.year}.nc"
+        """Path for the solar capacity factor file for the specified year."""
+        return self.raw / "CapacityFactors_ISONE" / "Solar" / f"cf_Solar_0.22m_{self.cfg.year}.nc"
 
 # ---------------------------------------------------------------------
 # Model Hyper (Mutable): HyperParameters using Pydantic
@@ -189,7 +144,7 @@ class HyperParameters(BaseModel):
     active_features: List[str] = []  # Injected from immutable config
     
     # Private state
-    _weights_override: Optional[Dict[str, float]] = PrivateAttr(None)
+    _weights_override: Dict[str, float] | None = PrivateAttr(None)
 
     class Config:
         validate_assignment = True
@@ -314,8 +269,7 @@ class Config:
             "1. Data Preproc (Immutable):\n"
             "   Contains data processing parameters. Key attributes:\n"
             "   - year (int): The data year (2007-2013).\n"
-            "   - cf_k_neighbors (int): Neighbors for capacity factor interpolation.\n"
-            "   - demand_decay_alpha (float): Decay factor (0 to 1) for demand adjustments.\n"
+            "   - granularity (str): Data granularity; allowed: 'coarse', 'fine'.\n"
             "   - active_features (list): Features to include; allowed: 'position', 'time_series', 'duration_curves',\n"
             "      'ramp_duration_curves', 'intra_correlation'.\n"
             "2. Model Hyper (Mutable):\n"
@@ -330,5 +284,5 @@ class Config:
             "\n"
             "3. Path (Immutable):\n"
             "   Contains dynamically generated paths based on data_preproc.year, including:\n"
-            "   - demand_file, wind_cf_file, solar_cf_file, node_file, branch_file, demand_lat_lon_file.\n"
+            "   - demand_file, wind_cf_file, solar_cf_file, and others.\n"
         )

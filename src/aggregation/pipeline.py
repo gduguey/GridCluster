@@ -1,3 +1,5 @@
+# pipeline.py — static preprocessing + hyperparameter runs
+
 import hashlib
 import json
 from dataclasses import asdict
@@ -9,7 +11,7 @@ from .models import SpatialAggregation, TemporalAggregation
 
 class StaticPreprocessor:
     """Handles network construction and feature preparation that doesn't change with hyperparameters"""
-    def __init__(self, granularity: str, year: int = 2013, active_features: list = ['position', 'time_series', 'duration_curves', 'ramp_duration_curves', 'intra_correlation'], inter_correlation: bool = True):
+    def __init__(self, granularity: str, year: int = 2013, active_features: list[str] = ['position', 'time_series', 'duration_curves', 'ramp_duration_curves', 'intra_correlation'], inter_correlation: bool = True):
         self.config = Config(
             year=year,
             granularity=granularity,
@@ -53,9 +55,9 @@ class DynamicProcessor:
         self.ntw = preprocessor.ntw
 
     def run_with_hyperparameters(self, 
-                               weights: dict,
+                               weights: dict[str, float],
                                n_representative_nodes: int,
-                               k_representative_days: int) -> tuple[dict, str, dict, dict]:
+                               k_representative_days: int) -> tuple[dict, str, dict[int, int], dict]:
         """Execute parameter-dependent pipeline steps"""
         ntw = self.ntw
         if ntw is None:
@@ -84,8 +86,6 @@ class DynamicProcessor:
             "k_representative_days": current_config.model_hyper.k_representative_days,
             "granularity": current_config.data_preproc.granularity,
             "year": current_config.data_preproc.year,
-            "spatial_clusters": spatial_results,
-            "temporal_clusters": temporal_results
         }
         
         return results.results, self._get_result_hash(current_config), day_weights, res_meta
@@ -94,7 +94,10 @@ class DynamicProcessor:
         """Generate unique hash for current configuration"""
         config_dict = {
             "data_preproc" : asdict(config.data_preproc),
-            "model_hyper": config.model_hyper.__dict__
+            "model_hyper": {
+                    **config.model_hyper.__dict__,
+                    "weights": config.model_hyper.weights
+                }
         }
         version_hash = hashlib.md5(json.dumps(config_dict, sort_keys=True).encode()).hexdigest()[:8]   
         return version_hash
